@@ -16,7 +16,7 @@ if 'menu_open' not in st.session_state:
     st.session_state.menu_open = False
 
 # Set page configuration
-st.set_page_config(page_title="Viber Blast Uploader", page_icon="📊", layout="wide")
+st.set_page_config(page_title="WORKLOADS-AUTOMATED", page_icon="📊", layout="wide")
 
 # Custom CSS
 st.markdown(
