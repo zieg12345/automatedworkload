@@ -10,6 +10,7 @@ if 'button2_clicked' not in st.session_state:
     st.session_state.button2_clicked = False
 if 'button3_clicked' not in st.session_state:
     st.session_state.button3_clicked = False
+
 if 'uploaded_file' not in st.session_state:
     st.session_state.uploaded_file = None
 if 'menu_open' not in st.session_state:
@@ -256,11 +257,12 @@ with st.container():
                     st.subheader("Summary Table")
                     st.dataframe(summary_df, use_container_width=True)
                     
-                    # Download button for summary table
-                    csv = summary_df.to_csv(index=False).encode('utf-8')
+                    # Download button for summary table (CSV UTF-8 with BOM)
+                    csv_content = summary_df.to_csv(index=False)
+                    csv_with_bom = '\ufeff' + csv_content  # Add UTF-8 BOM
                     st.download_button(
                         label="📥 Download Summary Table as CSV",
-                        data=csv,
+                        data=csv_with_bom.encode('utf-8'),
                         file_name=f"{current_date}.csv",
                         mime="text/csv",
                         key="download_summary"
@@ -272,10 +274,12 @@ with st.container():
             # Display sample data if no file is uploaded
             st.subheader("Sample Summary Table")
             st.dataframe(sample_df, use_container_width=True)
-            csv = sample_df.to_csv(index=False).encode('utf-8')
+            # Download button for sample data (CSV UTF-8 with BOM)
+            csv_content = sample_df.to_csv(index=False)
+            csv_with_bom = '\ufeff' + csv_content  # Add UTF-8 BOM
             st.download_button(
                 label="📥 Download",
-                data=csv,
+                data=csv_with_bom.encode('utf-8'),
                 file_name=f"{current_date}.csv",
                 mime="text/csv",
                 key="download_sample"
