@@ -26,7 +26,7 @@ st.markdown(
     /* Monochromatic theme (refined grays) */
     .main-content {
         padding: 20px;
-        background-color: #f5f5f5; /* Lighter gray */
+        background-color: #f5f5f5; /* Lighter gray *
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         color: #2b2b2b; /* Darker gray text */
@@ -70,7 +70,7 @@ st.markdown(
     }
     /* Center title */
     h1 {
-       ubtext-align: center;
+        text-align: center;
         color: #2b2b2b;
     }
     /* Burger menu button */
@@ -314,11 +314,9 @@ with st.container():
             try:
                 # Determine file type and read accordingly
                 if st.session_state.uploaded_file.name.endswith('.csv'):
-                    # Read CSV and explicitly set Contract Number as string
-                    df = pd.read_csv(st.session_state.uploaded_file, dtype={"Contract Number": str})
+                    df = pd.read_csv(st.session_state.uploaded_file)
                 elif st.session_state.uploaded_file.name.endswith('.xlsx'):
-                    # Read Excel and explicitly set Contract Number as string
-                    df = pd.read_excel(st.session_state.uploaded_file, engine='openpyxl', dtype={"Contract Number": str})
+                    df = pd.read_excel(st.session_state.uploaded_file, engine='openpyxl')
 
                 # Debug: Display detected column names in an expander
                 with st.expander("🔍 Show Detected Column Names"):
@@ -343,7 +341,7 @@ with st.container():
                     summary_df = pd.DataFrame()
 
                     # Populate the summary table
-                    summary_df["Contract Number"] = df["Contract Number"]  # Already string, no conversion needed
+                    summary_df["Contract Number"] = df["Contract Number"].astype(str)  # Ensure text format
                     summary_df["Email"] = df["Email"]
                     summary_df["{{chname}}"] = df["{{chname}}"]
                     summary_df["{{agentcode}}"] = ""  # Leave blank
@@ -353,7 +351,7 @@ with st.container():
                     summary_df["{{OB}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     summary_df["{{MYP}}"] = pd.to_numeric(df["Statement Overdue Amount (MYP)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     summary_df["{{MAD}}"] = pd.to_numeric(df["Statement Minimum Payment (MAD)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
-                   682                    summary_df["{{OB+CF}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce') * 1.2
+                    summary_df["{{OB+CF}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce') * 1.2
                     summary_df["{{OB+CF}}"] = summary_df["{{OB+CF}}"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     summary_df["{{MAD+CF}}"] = pd.to_numeric(df["Statement Minimum Payment (MAD)"], errors='coerce') * 1.2
                     summary_df["{{MAD+CF}}"] = summary_df["{{MAD+CF}}"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
