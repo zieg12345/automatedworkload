@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 
 # Initialize session state
@@ -13,6 +13,8 @@ if 'button3_clicked' not in st.session_state:
     st.session_state.button3_clicked = False
 if 'uploaded_file' not in st.session_state:
     st.session_state.uploaded_file = None
+if 'collector_file' not in st.session_state:
+    st.session_state.collector_file = None
 if 'menu_open' not in st.session_state:
     st.session_state.menu_open = False
 
@@ -26,7 +28,7 @@ st.markdown(
     /* Monochromatic theme (refined grays) */
     .main-content {
         padding: 20px;
-        background-color: #f5f5f5; /* Lighter gray *
+        background-color: #f5f5f5; /* Lighter gray */
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         color: #2b2b2b; /* Darker gray text */
@@ -150,16 +152,19 @@ with st.sidebar:
             st.session_state.button2_clicked = False
             st.session_state.button3_clicked = False
             st.session_state.uploaded_file = None
+            st.session_state.collector_file = None
         if st.button("EMAIL BLAST", help="Access Email Blast File Uploader"):
             st.session_state.button1_clicked = False
             st.session_state.button2_clicked = True
             st.session_state.button3_clicked = False
             st.session_state.uploaded_file = None
+            st.session_state.collector_file = None
         if st.button("REPORT", help="Placeholder for future feature"):
             st.session_state.button1_clicked = False
             st.session_state.button2_clicked = False
             st.session_state.button3_clicked = True
             st.session_state.uploaded_file = None
+            st.session_state.collector_file = None
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
@@ -292,7 +297,7 @@ with st.container():
         # Email Blast functionality
         st.subheader("Email Blast File Uploader")
         
-        # File uploader
+        # Main file uploader
         uploaded_file = st.file_uploader(
             "📤 Choose a CSV or Excel file",
             type=["csv", "xlsx"],
@@ -301,25 +306,37 @@ with st.container():
         )
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
-            st.success("File uploaded successfully!")
+            st.success("Main file uploaded successfully!")
+
+        # Collector file uploader
+        collector_file = st.file_uploader(
+            "📤 Choose a CSV or Excel file for Collector and Assign Date data",
+            type=["csv", "xlsx"],
+            key="collector_uploader",
+            help="Upload a CSV or Excel (.xlsx) file with columns: Financing/Card No., Collector, Assign Date"
+        )
+        if collector_file is not None:
+            st.session_state.collector_file = collector_file
+            st.success("Collector file uploaded successfully!")
 
         # Reset button
-        if st.session_state.uploaded_file is not None:
-            if st.button("🔄 Reset", help="Clear the uploaded file and reset"):
+        if st.session_state.uploaded_file is not None or st.session_state.collector_file is not None:
+            if st.button("🔄 Reset", help="Clear the uploaded files and reset"):
                 st.session_state.uploaded_file = None
+                st.session_state.collector_file = None
                 st.session_state.button2_clicked = False
                 st.rerun()
 
         if st.session_state.uploaded_file is not None:
             try:
-                # Determine file type and read accordingly
+                # Determine file type and read main file
                 if st.session_state.uploaded_file.name.endswith('.csv'):
                     df = pd.read_csv(st.session_state.uploaded_file)
                 elif st.session_state.uploaded_file.name.endswith('.xlsx'):
                     df = pd.read_excel(st.session_state.uploaded_file, engine='openpyxl')
 
                 # Debug: Display detected column names in an expander
-                with st.expander("🔍 Show Detected Column Names"):
+                with st.expander("🔍 Show Detected Column Names (Main File)"):
                     st.write("Detected Column Names:", list(df.columns))
 
                 # Define the required columns for the summary table
@@ -335,17 +352,17 @@ with st.container():
                 # Check if all required columns exist
                 missing_columns = [col for col in required_columns if col not in df.columns]
                 if missing_columns:
-                    st.error(f"The following required columns are missing in the file: {', '.join(missing_columns)}")
+                    st.error(f"The following required columns are missing in the main file: {', '.join(missing_columns)}")
                 else:
                     # Create the summary table DataFrame
                     summary_df = pd.DataFrame()
 
                     # Populate the summary table
-                    summary_df["Contract Number"] = df["Contract Number"].astype(str)  # Ensure text format
+                    summary_df["Contract Number"] = df["Contract Number"].astype(str).str.replace(r'\.0$', '', regex=True)  # Ensure text format and remove .0
                     summary_df["Email"] = df["Email"]
                     summary_df["{{chname}}"] = df["{{chname}}"]
-                    summary_df["{{agentcode}}"] = ""  # Leave blank
-                    summary_df["{{ID}}"] = ""  # Leave blank
+                    summary_df["{{agentcode}}"] = ""  # Initialize as blank
+                    summary_df["{{ID}}"] = ""  # Initialize as blank
                     
                     # Convert to numeric and format with thousand separators, 2 decimals
                     summary_df["{{OB}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
@@ -358,7 +375,7 @@ with st.container():
                     summary_df["{{MYP+CF}}"] = pd.to_numeric(df["Statement Overdue Amount (MYP)"], errors='coerce') * 1.2
                     summary_df["{{MYP+CF}}"] = summary_df["{{MYP+CF}}"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     
-                    summary_df["Assignment Date"] = ""  # Leave blank
+                    summary_df["Assignment Date"] = ""  # Initialize as blank
                     summary_df["TEMPLATE 1 D1"] = df["TEMPLATE 1 D1"]
                     summary_df["TEMPLATE 1 D2"] = df["TEMPLATE 1 D2"]
                     summary_df["TEMPLATE 2 D1"] = df["TEMPLATE 2 D1"]
@@ -371,6 +388,72 @@ with st.container():
                     summary_df["TEMPLATE 5 D2"] = df["TEMPLATE 5 D2"]
                     summary_df["TEMPLATE 6 D1"] = df["TEMPLATE 6 D1"]
                     summary_df["TEMPLATE 6 D2"] = df["TEMPLATE 6 D2"]
+
+                    # Process collector file if uploaded
+                    if st.session_state.collector_file is not None:
+                        try:
+                            # Read collector file
+                            if st.session_state.collector_file.name.endswith('.csv'):
+                                collector_df = pd.read_csv(st.session_state.collector_file)
+                            elif st.session_state.collector_file.name.endswith('.xlsx'):
+                                collector_df = pd.read_excel(st.session_state.collector_file, engine='openpyxl')
+
+                            # Debug: Display detected column names in collector file
+                            with st.expander("🔍 Show Detected Column Names (Collector File)"):
+                                st.write("Detected Column Names:", list(collector_df.columns))
+
+                            # Check for required columns in collector file
+                            collector_required_columns = ["Financing/Card No.", "Collector", "Assign Date"]
+                            collector_missing_columns = [col for col in collector_required_columns if col not in collector_df.columns]
+                            if collector_missing_columns:
+                                st.error(f"The following required columns are missing in the collector file: {', '.join(collector_missing_columns)}")
+                            else:
+                                # Ensure Financing/Card No. is string and clean
+                                collector_df["Financing/Card No."] = collector_df["Financing/Card No."].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                                summary_df["Contract Number"] = summary_df["Contract Number"].astype(str).str.strip()
+
+                                # Convert Assign Date to datetime and format as MM/DD/YYYY
+                                collector_df["Assign Date"] = pd.to_datetime(collector_df["Assign Date"], errors='coerce').dt.strftime('%m/%d/%Y')
+
+                                # Merge to get Collector and Assign Date values
+                                summary_df = summary_df.merge(
+                                    collector_df[["Financing/Card No.", "Collector", "Assign Date"]],
+                                    how="left",
+                                    left_on="Contract Number",
+                                    right_on="Financing/Card No."
+                                )
+                                summary_df["{{agentcode}}"] = summary_df["Collector"].fillna("")
+                                summary_df["Assignment Date"] = summary_df["Assign Date"].fillna("")
+                                summary_df = summary_df.drop(columns=["Financing/Card No.", "Collector", "Assign Date"], errors='ignore')
+
+                                # Define date range for BCCO (last 3 days including today)
+                                today = datetime.now().date()
+                                date_threshold = today - timedelta(days=2)  # 3 days including today
+                                date_threshold_str = date_threshold.strftime('%m/%d/%Y')
+                                bcco_dates = [
+                                    (today - timedelta(days=i)).strftime('%m/%d/%Y')
+                                    for i in range(3)
+                                ]
+
+                                # Assign {{ID}} based on Assignment Date
+                                summary_df["{{ID}}"] = summary_df["Assignment Date"].apply(
+                                    lambda x: "BCCO" if x in bcco_dates else "BDCO" if x else ""
+                                )
+
+                                # Update {{agentcode}} to "PLAA" where {{ID}} is "BDCO"
+                                summary_df.loc[summary_df["{{ID}}"] == "BDCO", "{{agentcode}}"] = "PLAA"
+
+                                # Remove rows where {{agentcode}} is blank or null
+                                initial_row_count = len(summary_df)
+                                summary_df = summary_df[summary_df["{{agentcode}}"].notna() & (summary_df["{{agentcode}}"] != "")]
+                                if len(summary_df) < initial_row_count:
+                                    st.info(f"Removed {initial_row_count - len(summary_df)} rows where {{agentcode}} was blank or null, keeping only active accounts.")
+
+                                if summary_df["{{agentcode}}"].isna().any() or (summary_df["{{agentcode}}"] == "").any() or \
+                                   summary_df["Assignment Date"].isna().any() or (summary_df["Assignment Date"] == "").any():
+                                    st.warning("Some Contract Numbers did not match with Financing/Card No. in the collector file. Unmatched rows will have empty {{agentcode}}, Assignment Date, or {{ID}}.")
+                        except Exception as e:
+                            st.error(f"An error occurred while processing the collector file: {str(e)}")
 
                     # Define columns to check for blank or None values
                     columns_to_check = [
@@ -406,7 +489,7 @@ with st.container():
                     else:
                         st.warning("No rows remain after removing those with blank or None values in Email, {{chname}}, {{OB}}, {{MYP}}, {{MAD}}, {{OB+CF}}, {{MAD+CF}}, or {{MYP+CF}} fields.")
             except Exception as e:
-                st.error(f"An error occurred while processing the file: {str(e)}")
+                st.error(f"An error occurred while processing the main file: {str(e)}")
         else:
             st.info("Please upload a CSV or Excel file to generate the summary table.")
     elif st.session_state.button3_clicked:
